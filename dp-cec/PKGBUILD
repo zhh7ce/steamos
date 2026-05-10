@@ -1,0 +1,40 @@
+# Maintainer: Your Name <your.email@example.com>
+pkgname=dp-cec
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="CEC control utility for Steam Deck with systemd services"
+arch=('any')
+url="https://github.com/yourusername/dp-cec"
+license=('MIT')
+depends=()
+makedepends=()
+optdepends=()
+backup=()
+options=()
+install='dp-cec.install'
+changelog=
+source=("dp-cec"
+        "cec-onboot.service"
+        "cec-onpoweroff.service"
+        "cec-onsleep.service")
+noextract=()
+md5sums=('SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP')
+
+package() {
+    # 安装可执行脚本到 /usr/bin
+    install -Dm755 "${srcdir}/dp-cec" \
+        "${pkgdir}/usr/bin/dp-cec"
+    
+    # 安装 systemd 服务文件到标准位置
+    install -Dm644 "${srcdir}/cec-onboot.service" \
+        "${pkgdir}/usr/lib/systemd/system/cec-onboot.service"
+    
+    install -Dm644 "${srcdir}/cec-onpoweroff.service" \
+        "${pkgdir}/usr/lib/systemd/system/cec-onpoweroff.service"
+    
+    install -Dm644 "${srcdir}/cec-onsleep.service" \
+        "${pkgdir}/usr/lib/systemd/system/cec-onsleep.service"
+}

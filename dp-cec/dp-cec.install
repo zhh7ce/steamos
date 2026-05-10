@@ -1,0 +1,46 @@
+post_install() {
+    # 自动启用 systemd 服务
+    systemctl enable cec-onboot.service 2>/dev/null || true
+    systemctl enable cec-onpoweroff.service 2>/dev/null || true
+    systemctl enable cec-onsleep.service 2>/dev/null || true
+    
+    echo "==> dp-cec has been installed successfully!"
+    echo "==> CEC services have been enabled automatically."
+    echo "==> Services will activate on boot, shutdown, and sleep."
+    echo ""
+    echo "==> You can configure dp-cec by creating a config file:"
+    echo "    /etc/dp-cec/dp-cec.conf"
+    echo ""
+    echo "==> To check service status:"
+    echo "    systemctl status cec-onboot.service"
+}
+
+post_upgrade() {
+    # 重新加载 systemd 配置
+    systemctl daemon-reload 2>/dev/null || true
+    
+    # 确保服务已启用
+    systemctl enable cec-onboot.service 2>/dev/null || true
+    systemctl enable cec-onpoweroff.service 2>/dev/null || true
+    systemctl enable cec-onsleep.service 2>/dev/null || true
+    
+    echo "==> dp-cec has been upgraded successfully!"
+    echo "==> CEC services have been re-enabled."
+}
+
+post_remove() {
+    # 禁用并停止服务
+    systemctl disable cec-onboot.service 2>/dev/null || true
+    systemctl disable cec-onpoweroff.service 2>/dev/null || true
+    systemctl disable cec-onsleep.service 2>/dev/null || true
+    
+    systemctl stop cec-onboot.service 2>/dev/null || true
+    systemctl stop cec-onpoweroff.service 2>/dev/null || true
+    systemctl stop cec-onsleep.service 2>/dev/null || true
+    
+    # 重新加载 systemd 配置
+    systemctl daemon-reload 2>/dev/null || true
+    
+    echo "==> dp-cec has been removed."
+    echo "==> All CEC services have been disabled and stopped."
+}
