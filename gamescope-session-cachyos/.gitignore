@@ -1,0 +1,21 @@
+# AUR build artifacts
+pkg/
+src/
+gamescope-session-cachyos/
+*.tar.zst
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+
+# Build directory
+build/
+
+# Editor files
+*~
+*.swp
+*.swo
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,1 @@
+修复CachyOS下steam键盘不能输入中文的问题，需要手动降级libxkbcommon

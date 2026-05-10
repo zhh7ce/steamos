@@ -1,0 +1,13 @@
+diff --git a/usr/lib/systemd/user/ibus-gamescope.service b/usr/lib/systemd/user/ibus-gamescope.service
+index f1cc262..39c7191 100644
+--- a/usr/lib/systemd/user/ibus-gamescope.service
++++ b/usr/lib/systemd/user/ibus-gamescope.service
+@@ -5,7 +5,7 @@ After=graphical-session.target
+ 
+ [Service]
+ Type=dbus
+-ExecStart=/usr/bin/ibus-daemon -r --panel=disable --emoji-extension=disable
++ExecStart=/usr/bin/ibus-daemon -r --panel=/usr/lib/kimpanel-ibus-panel --emoji-extension=disable
+ BusName=org.freedesktop.IBus
+ EnvironmentFile=%t/gamescope-environment
+ Slice=session.slice
