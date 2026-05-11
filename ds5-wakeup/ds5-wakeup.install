@@ -1,0 +1,25 @@
+post_install() {
+    # 重新加载 udev 规则
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger 2>/dev/null || true
+    
+    echo "==> ds5-wakeup has been installed successfully!"
+    echo "==> Udev rules have been reloaded."
+    echo "==> Your PS5 DualSense controller should now support USB wakeup."
+    echo ""
+    echo "==> To verify, connect your controller and check:"
+    echo "    udevadm info -a -p \$(udevadm info -q path -n /dev/bus/usb/*/*)"
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    # 重新加载 udev 规则
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger 2>/dev/null || true
+    
+    echo "==> ds5-wakeup has been removed."
+    echo "==> Udev rules have been reloaded."
+}

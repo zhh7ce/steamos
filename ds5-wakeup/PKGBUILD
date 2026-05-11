@@ -1,0 +1,24 @@
+# Maintainer: Your Name <your.email@example.com>
+pkgname=ds5-wakeup
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Udev rules to enable USB wakeup for Sony PS5 DualSense controller"
+arch=('any')
+url="https://github.com/yourusername/ds5-wakeup"
+license=('MIT')
+depends=('systemd')
+makedepends=()
+optdepends=()
+backup=()
+options=()
+install='ds5-wakeup.install'
+changelog=
+source=("99-ds5-wakeup.rules")
+noextract=()
+md5sums=('SKIP')
+
+package() {
+    # 安装 udev 规则文件到标准位置
+    install -Dm644 "${srcdir}/99-ds5-wakeup.rules" \
+        "${pkgdir}/usr/lib/udev/rules.d/99-ds5-wakeup.rules"
+}

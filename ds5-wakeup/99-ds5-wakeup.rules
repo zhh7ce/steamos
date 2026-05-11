@@ -1,0 +1,2 @@
+# 为 Sony PS5 手柄启用 USB 唤醒
+ACTION=="add", SUBSYSTEM=="usb", DRIVERS=="usb", ATTRS{idVendor}=="054c", ATTR{power/wakeup}="enabled"
