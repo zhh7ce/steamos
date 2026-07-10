@@ -1,0 +1,40 @@
+diff --git a/include/client.hpp b/include/client.hpp
+index 7971c132..87224732 100644
+--- a/include/client.hpp
++++ b/include/client.hpp
+@@ -64,6 +64,7 @@ class Client {
+   sigc::connection monitor_removed_connection_;
+   std::list<waybar_output*> pending_outputs_;
+   bool bars_scheduled_ = false;
++  bool hide_on_start_ = false;
+ };
+ 
+ }  // namespace waybar
+diff --git a/src/client.cpp b/src/client.cpp
+index d09de5bd..31e063ac 100644
+--- a/src/client.cpp
++++ b/src/client.cpp
+@@ -143,6 +143,13 @@ void waybar::Client::createBarsBatch() {
+ 
+   pending_outputs_.clear();
+   bars_scheduled_ = false;
++
++  if (hide_on_start_) {
++    for (auto& bar : bars) {
++      bar->hide();
++    }
++    hide_on_start_ = false;
++  }
+ }
+ 
+ void waybar::Client::handleOutputName(void* data, struct zxdg_output_v1* /*xdg_output*/,
+@@ -319,7 +326,8 @@ int waybar::Client::main(int argc, char* argv[]) {
+              clara::detail::Opt(
+                  log_level,
+                  "trace|debug|info|warning|error|critical|off")["-l"]["--log-level"]("Log level") |
+-             clara::detail::Opt(bar_id, "id")["-b"]["--bar"]("Bar id");
++             clara::detail::Opt(bar_id, "id")["-b"]["--bar"]("Bar id") |
++             clara::detail::Opt(hide_on_start_)["--hide"]("Hide bar on startup");
+   auto res = cli.parse(clara::detail::Args(argc, argv));
+   if (!res) {
+     spdlog::error("Error in command line: {}", res.errorMessage());
