@@ -1,0 +1,309 @@
+diff --git a/.gitignore b/.gitignore
+index cb0bf778..da34185d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,4 +1,5 @@
+ /target
+ /result
++/.cargo
+ 
+ .idea
+\ No newline at end of file
+diff --git a/niri-config/src/input.rs b/niri-config/src/input.rs
+index 5a2eb136..fac357df 100644
+--- a/niri-config/src/input.rs
++++ b/niri-config/src/input.rs
+@@ -369,6 +369,22 @@ pub struct Tablet {
+     pub map_to_focused_window: bool,
+     #[knuffel(child)]
+     pub left_handed: bool,
++    #[knuffel(child)]
++    pub map_to_region: Option<TabletRegionConfig>,
++}
++
++#[derive(knuffel::Decode, Debug, Clone, PartialEq)]
++pub struct TabletRegionConfig {
++    #[knuffel(property(name = "output"))]
++    pub output: String,
++    #[knuffel(property(name = "x"))]
++    pub x: i32,
++    #[knuffel(property(name = "y"))]
++    pub y: i32,
++    #[knuffel(property(name = "width"))]
++    pub width: i32,
++    #[knuffel(property(name = "height"))]
++    pub height: i32,
+ }
+ 
+ #[derive(knuffel::Decode, Debug, Default, Clone, PartialEq)]
+diff --git a/niri-config/src/lib.rs b/niri-config/src/lib.rs
+index 77f07967..016a4866 100644
+--- a/niri-config/src/lib.rs
++++ b/niri-config/src/lib.rs
+@@ -50,7 +50,9 @@ pub use crate::binds::*;
+ pub use crate::debug::Debug;
+ pub use crate::error::{ConfigIncludeError, ConfigParseResult};
+ pub use crate::gestures::Gestures;
+-pub use crate::input::{Input, ModKey, ScrollMethod, TrackLayout, WarpMouseToFocusMode, Xkb};
++pub use crate::input::{
++    Input, ModKey, ScrollMethod, TabletRegionConfig, TrackLayout, WarpMouseToFocusMode, Xkb,
++};
+ pub use crate::layer_rule::LayerRule;
+ pub use crate::layout::*;
+ pub use crate::misc::*;
+diff --git a/resources/default-config.kdl b/resources/default-config.kdl
+index 28b45cf7..89cb9d87 100644
+--- a/resources/default-config.kdl
++++ b/resources/default-config.kdl
+@@ -61,6 +61,21 @@ input {
+         // middle-emulation
+     }
+ 
++    tablet {
++        // off
++        // left-handed
++
++        // Map the tablet to a specific output by name.
++        // map-to-output "eDP-1"
++
++        // Alternatively, map the tablet to a specific region of an output.
++        // This is useful for mapping your tablet's active area to a portion of your display,
++        // such as a specific application window or a centered square region.
++        // Coordinates are in physical pixels relative to the output's top-left corner.
++        // When map-to-region is set, map-to-output is ignored.
++        // map-to-region output="DP-1" x=100 y=100 width=1920 height=1080
++    }
++
+     // Uncomment this to make the mouse warp to the center of newly focused windows.
+     // warp-mouse-to-focus
+ 
+diff --git a/src/input/mod.rs b/src/input/mod.rs
+index 50567530..94d5c844 100644
+--- a/src/input/mod.rs
++++ b/src/input/mod.rs
+@@ -33,7 +33,7 @@ use smithay::input::SeatHandler;
+ use smithay::output::Output;
+ use smithay::reexports::wayland_server::protocol::wl_data_source::WlDataSource;
+ use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
+-use smithay::utils::{Logical, Point, Rectangle, Transform, SERIAL_COUNTER};
++use smithay::utils::{Logical, Physical, Point, Rectangle, Size, Transform, SERIAL_COUNTER};
+ use smithay::wayland::keyboard_shortcuts_inhibit::KeyboardShortcutsInhibitor;
+ use smithay::wayland::pointer_constraints::{with_pointer_constraint, PointerConstraint};
+ use smithay::wayland::tablet_manager::{TabletDescriptor, TabletSeatTrait};
+@@ -70,9 +70,41 @@ use backend_ext::{NiriInputBackend as InputBackend, NiriInputDevice as _};
+ 
+ pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(400);
+ 
+-#[derive(Debug, Clone, Copy, PartialEq)]
++#[derive(Debug, Clone, PartialEq)]
+ pub struct TabletData {
+     pub aspect_ratio: f64,
++    pub region: Option<TabletRegion>,
++}
++
++#[derive(Debug, Clone, PartialEq)]
++pub struct TabletRegion {
++    pub output: String,
++    pub bounds: Rectangle<i32, Physical>,
++    pub source: TabletRegionSource,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum TabletRegionSource {
++    Config,
++    IpcCommand,
++    WindowRule,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq)]
++pub enum TabletAspectPreset {
++    Ratio16x9,
++    Ratio16x10,
++    Custom(f64),
++}
++
++impl TabletAspectPreset {
++    pub fn as_ratio(self) -> f64 {
++        match self {
++            TabletAspectPreset::Ratio16x9 => 16.0 / 9.0,
++            TabletAspectPreset::Ratio16x10 => 16.0 / 10.0,
++            TabletAspectPreset::Custom(ratio) => ratio,
++        }
++    }
+ }
+ 
+ pub enum PointerOrTouchStartData<D: SeatHandler> {
+@@ -205,7 +237,29 @@ impl State {
+                     match device.size() {
+                         Some((w, h)) => {
+                             let aspect_ratio = w / h;
+-                            let data = TabletData { aspect_ratio };
++
++                            // Check if there's a region configured for this tablet
++                            let region = {
++                                let config = self.niri.config.borrow();
++                                config.input.tablet.map_to_region.as_ref().map(|region_config| {
++                                    use crate::input::{TabletRegion, TabletRegionSource};
++                                    use smithay::utils::{Point, Rectangle, Size};
++
++                                    TabletRegion {
++                                        output: region_config.output.clone(),
++                                        bounds: Rectangle::new(
++                                            Point::from((region_config.x, region_config.y)),
++                                            Size::from((region_config.width, region_config.height)),
++                                        ),
++                                        source: TabletRegionSource::Config,
++                                    }
++                                })
++                            };
++
++                            let data = TabletData {
++                                aspect_ratio,
++                                region,
++                            };
+                             self.niri.tablets.insert(device.clone(), data);
+                         }
+                         None => {
+@@ -285,7 +339,8 @@ impl State {
+     /// Computes the cursor position for the tablet event.
+     ///
+     /// This function handles the tablet output mapping, as well as coordinate clamping and aspect
+-    /// ratio correction.
++    /// ratio correction. If a tablet region is configured, it maps to that specific region instead
++    /// of the full output.
+     fn compute_tablet_position<I: InputBackend>(
+         &self,
+         event: &(impl Event<I> + TabletToolEvent<I>),
+@@ -293,6 +348,14 @@ impl State {
+     where
+         I::Device: 'static,
+     {
++        // Check if this device has a region configured
++        let device = event.device();
++        let tablet_region = if let Some(device) = (&device as &dyn Any).downcast_ref::<input::Device>() {
++            self.niri.tablets.get(device).and_then(|data| data.region.as_ref())
++        } else {
++            None
++        };
++
+         let device_output = event.device().output(self);
+         let device_output = device_output.filter(|output| self.niri.output_exists(output));
+         let device_output = device_output.as_ref();
+@@ -316,7 +379,36 @@ impl State {
+             None
+         };
+ 
+-        let (target_geo, keep_ratio, px, transform) = if let Some((rect, output)) = window_target {
++        let (target_geo, keep_ratio, px, transform) = if let Some(region) = tablet_region {
++            // Use the configured region instead of the full output
++            let output = self.niri.global_space.outputs()
++                .find(|o| o.name() == region.output)?;
++
++            // Get the output's position in global space
++            let output_geo = self.niri.global_space.output_geometry(output)?;
++
++            // Convert region bounds from physical to logical coordinates
++            let scale = output.current_scale().fractional_scale();
++            let region_loc_logical = Point::from((
++                (region.bounds.loc.x as f64 / scale) as i32,
++                (region.bounds.loc.y as f64 / scale) as i32,
++            ));
++            let region_size_logical = Size::from((
++                (region.bounds.size.w as f64 / scale) as i32,
++                (region.bounds.size.h as f64 / scale) as i32,
++            ));
++
++            // Region location is relative to output, so add output's global position
++            let global_loc = output_geo.loc + region_loc_logical;
++            let region_global = Rectangle::new(global_loc, region_size_logical);
++
++            (
++                region_global.to_f64(),
++                true,
++                1. / scale,
++                Transform::Normal,
++            )
++        } else if let Some((rect, output)) = window_target {
+             (
+                 rect,
+                 true,
+diff --git a/src/niri.rs b/src/niri.rs
+index 3d60544a..f3e7a6a5 100644
+--- a/src/niri.rs
++++ b/src/niri.rs
+@@ -1653,9 +1653,21 @@ impl State {
+         }
+ 
+         if libinput_config_changed {
+-            let config = self.niri.config.borrow();
+-            for mut device in self.niri.devices.iter().cloned() {
+-                apply_libinput_settings(&config.input, &mut device);
++            let tablet_region_config = {
++                let config = self.niri.config.borrow();
++                for mut device in self.niri.devices.iter().cloned() {
++                    apply_libinput_settings(&config.input, &mut device);
++                }
++                // Clone the region config before dropping the borrow
++                config.input.tablet.map_to_region.clone()
++            };
++
++            // Apply tablet region configuration from config file
++            if let Some(region_config) = &tablet_region_config {
++                self.apply_tablet_region_from_config(region_config);
++            } else {
++                // Clear config-sourced regions if map_to_region was removed
++                self.clear_tablet_regions_from_config();
+             }
+         }
+ 
+@@ -1966,6 +1978,50 @@ impl State {
+         self.niri.output_management_state.notify_changes(new_config);
+     }
+ 
++    pub fn apply_tablet_region_from_config(
++        &mut self,
++        region_config: &niri_config::TabletRegionConfig,
++    ) {
++        use crate::input::{TabletRegion, TabletRegionSource};
++        use smithay::utils::{Point, Rectangle, Size};
++
++        let region = TabletRegion {
++            output: region_config.output.clone(),
++            bounds: Rectangle::new(
++                Point::from((region_config.x, region_config.y)),
++                Size::from((region_config.width, region_config.height)),
++            ),
++            source: TabletRegionSource::Config,
++        };
++
++        // Apply the region to all connected tablets
++        for tablet_data in self.niri.tablets.values_mut() {
++            // Only update if there's no higher-priority region active
++            if tablet_data.region.is_none()
++                || matches!(
++                    tablet_data.region.as_ref().map(|r| r.source),
++                    Some(TabletRegionSource::Config)
++                )
++            {
++                tablet_data.region = Some(region.clone());
++            }
++        }
++    }
++
++    pub fn clear_tablet_regions_from_config(&mut self) {
++        use crate::input::TabletRegionSource;
++
++        // Remove config-sourced regions from all tablets
++        for tablet_data in self.niri.tablets.values_mut() {
++            if matches!(
++                tablet_data.region.as_ref().map(|r| r.source),
++                Some(TabletRegionSource::Config)
++            ) {
++                tablet_data.region = None;
++            }
++        }
++    }
++
+     pub fn open_screenshot_ui(&mut self, show_pointer: bool, path: Option<String>) {
+         if self.niri.is_locked() || self.niri.screenshot_ui.is_open() {
+             return;
