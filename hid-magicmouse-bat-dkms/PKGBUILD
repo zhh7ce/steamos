@@ -1,0 +1,40 @@
+# Maintainer: zhh7ce <zhh7ce@qq.com>
+# Contributor: Damiano Gragnaniello <damiano.gragnaniello@gmail.com>
+#   Original code from https://github.com/D3M-Sudo/hid-magictrackpad-v1-battery
+# License: GPLv2 (inherited from upstream Linux kernel)
+
+pkgname=hid-magicmouse-bat-dkms
+pkgver=1.0
+pkgrel=1
+pkgdesc="Linux kernel module for Apple Magic Trackpad v1 with battery reporting support"
+arch=('any')
+url="https://github.com/D3M-Sudo/hid-magictrackpad-v1-battery"
+license=('GPL2')
+depends=('dkms')
+makedepends=('make' 'gcc')
+conflicts=()
+provides=("hid-magicmouse-bat=${pkgver}")
+install="${pkgname}.install"
+
+source=(
+    "Makefile"
+    "hid-ids.h"
+    "hid-magicmouse.c"
+    "dkms.conf"
+    "blacklist-magicmouse.conf"
+    "${pkgname}.install"
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+    # DKMS 源码目录：/usr/src/hid-magicmouse-bat-1.0/
+    install -d "${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}"
+    
+    install -m 644 Makefile "${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}/"
+    install -m 644 hid-ids.h "${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}/"
+    install -m 644 hid-magicmouse.c "${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}/"
+    install -m 644 dkms.conf "${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}/"
+    
+    # 安装黑名单文件到 modprobe.d
+    install -D -m 644 blacklist-magicmouse.conf "${pkgdir}/etc/modprobe.d/blacklist-magicmouse.conf"
+}

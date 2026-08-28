@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+echo 1 > /sys/kernel/debug/dri/0000\:03\:00.0/DP-1/trigger_hotplug

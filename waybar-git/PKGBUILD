@@ -8,8 +8,8 @@
 : ${_with_gpsd:=false}
 
 _pkgname="waybar"
-pkgname="$_pkgname-git"
-pkgver=0.15.0.r929.geee2ab9
+pkgname="$_pkgname-hide-git"
+pkgver=0.15.0.r1000.g28368c2
 pkgrel=1
 pkgdesc="Highly customizable Wayland bar for Sway and Wlroots based compositors"
 url='https://gitcode.com/GitHub_Trending/wa/Waybar'

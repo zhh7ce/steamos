@@ -1,0 +1,34 @@
+# Maintainer: Your Name <your.email@example.com>
+pkgname=pc-control
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Provide PC Control tools with no password sudo"
+arch=('any')
+url="https://github.com/yourusername/pc-control"
+license=('MIT')
+depends=()
+makedepends=()
+optdepends=()
+backup=()
+options=()
+changelog=
+source=("trigger-dp-hotplugin"
+        "pc-reboot"
+        "pc-control")
+noextract=()
+md5sums=('SKIP'
+         'SKIP'
+         'SKIP')
+
+package() {
+    # 安装可执行脚本到 /usr/bin
+    install -Dm755 "${srcdir}/trigger-dp-hotplugin" \
+        "${pkgdir}/usr/bin/trigger-dp-hotplugin"
+
+    install -Dm755 "${srcdir}/pc-reboot" \
+        "${pkgdir}/usr/bin/pc-reboot"
+    
+    # 安装 sudo 文件到标准位置
+    install -Dm440 "${srcdir}/pc-control" \
+        "${pkgdir}/etc/sudoers.d/pc-control"
+}

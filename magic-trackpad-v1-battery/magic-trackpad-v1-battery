@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+import hid
+
+try:
+    dev = hid.device()
+    dev.open(0x05AC, 0x030E)  # Apple Magic Mouse
+    
+    # 读取Feature 71
+    report = dev.get_feature_report(71, 2)
+    
+    if report and len(report) >= 2:
+        print(report[1])
+    
+    dev.close()
+except:
+    # 任何错误都静默退出
+    pass

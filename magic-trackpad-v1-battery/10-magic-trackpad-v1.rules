@@ -1,0 +1,1 @@
+SUBSYSTEM=="hidraw", KERNELS=="0005:*:030E.*", DRIVERS=="magicmouse", ENV{ID_SEAT}="seat0", TAG+="uaccess"

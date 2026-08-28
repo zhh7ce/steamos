@@ -1,0 +1,2 @@
+deck ALL=(root) NOPASSWD: /usr/bin/pc-reboot
+deck ALL=(root) NOPASSWD: /usr/bin/trigger-dp-hotplugin

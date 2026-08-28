@@ -1,0 +1,27 @@
+# Maintainer: Your Name <your.email@example.com>
+pkgname=magic-trackpad-v1-battery
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Get magic trackpad v1 battery"
+arch=('any')
+url="https://github.com/zhh7ce/archlinux"
+license=('MIT')
+depends=('python' 'python-hidapi')
+makedepends=()
+optdepends=()
+backup=()
+options=()
+install='udev-update.install'
+changelog=
+source=("10-magic-trackpad-v1.rules" "magic-trackpad-v1-battery")
+noextract=()
+md5sums=('SKIP' 'SKIP')
+
+package() {
+    # 安装 udev 规则文件到标准位置
+    install -Dm644 "${srcdir}/10-magic-trackpad-v1.rules" \
+        "${pkgdir}/usr/lib/udev/rules.d/10-magic-trackpad-v1.rules"
+
+    install -Dm755 "${srcdir}/magic-trackpad-v1-battery" \
+        "${pkgdir}/usr/bin/${pkgname}"
+}
