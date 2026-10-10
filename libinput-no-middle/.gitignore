@@ -1,6 +1,7 @@
 # AUR build artifacts
 pkg/
 src/
+libinput/
 *.tar.zst
 *.tar.gz
 *.tar.xz

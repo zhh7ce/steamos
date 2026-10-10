@@ -1,2 +1,8 @@
 # not finished
 steamos-moonlight-helper/
+
+# makepkg build artifacts
+src/
+pkg/
+*.pkg.tar.*
+*.log
